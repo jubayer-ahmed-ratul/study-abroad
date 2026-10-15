@@ -7,6 +7,8 @@ import { connectToDatabase } from "@/lib/mongodb";
 import { Country, toSafeCountry, type CountryRecord, type SafeCountry } from "@/models/Country";
 import { checkCountryDependencies } from "@/lib/countries/dependencies";
 import { deleteCountryImage } from "@/lib/countries/images";
+import { UNIVERSITIES_LIST_TAG } from "@/lib/universities/tags";
+import { revalidateUniversitiesForCountry } from "@/lib/universities/service";
 import type { ValidatedCountryInput } from "@/lib/countries/validation";
 
 export class CountryApiError extends Error {
@@ -60,6 +62,10 @@ function revalidateCountryCaches(slugs: string[]): void {
   // { expire: 0 }: never serve stale — the next request revalidates
   // synchronously. Admins see their change (including unpublish) immediately.
   revalidateTag(COUNTRIES_LIST_TAG, { expire: 0 });
+  // University listings share one tag; university details are purged
+  // per-country where the country id is known (see update/delete below).
+  revalidateTag(UNIVERSITIES_LIST_TAG, { expire: 0 });
+  revalidatePath("/universities");
   for (const slug of slugs) {
     revalidatePath(`/countries/${slug}`);
     revalidateTag(countryDetailTag(slug), { expire: 0 });
@@ -239,6 +245,8 @@ export async function updateCountry(
   revalidateCountryCaches(
     doc.slug !== oldSlug ? [oldSlug, doc.slug] : [doc.slug]
   );
+  // University details/lists for this country track its visibility.
+  await revalidateUniversitiesForCountry(String(doc._id));
 
   return toSafeCountry(doc);
 }
@@ -259,6 +267,7 @@ export async function deleteCountry(id: string): Promise<{ slug: string }> {
 
   const slug = doc.slug;
   const publicId = doc.flagImagePublicId;
+  const countryId = String(doc._id);
   await doc.deleteOne();
 
   if (publicId) {
@@ -270,5 +279,8 @@ export async function deleteCountry(id: string): Promise<{ slug: string }> {
   }
 
   revalidateCountryCaches([slug]);
+  // Universities cannot reference a deleted country (deletion is refused
+  // while references exist), but purge their caches regardless for safety.
+  await revalidateUniversitiesForCountry(countryId);
   return { slug };
 }

@@ -96,6 +96,12 @@ async function CountryDetail({ params }: { params: Promise<{ slug: string }> }) 
       <p className="text-xs text-zinc-400">
         Last updated {new Date(country.updatedAt).toLocaleDateString()}
       </p>
+      <Link
+        href={`/countries/${country.slug}/universities`}
+        className="w-fit rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900"
+      >
+        View universities in {country.name} →
+      </Link>
     </div>
   );
 }

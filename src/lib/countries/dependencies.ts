@@ -1,22 +1,21 @@
 import "server-only";
 
+import { University } from "@/models/University";
+
 /**
  * Dependency checks for safe country deletion.
  *
- * Phase 2: universities do not exist yet, so this always reports zero.
- * Phase 3 must replace the stub with a real count against the University
- * model (e.g. `University.countDocuments({ country: countryId })`).
- * Deletion already refuses non-zero counts with HTTP 409 — no caller changes
- * needed when the real check lands.
+ * Counts real university references: a country with universities cannot be
+ * deleted (HTTP 409) — unpublish it instead. Universities are never
+ * cascade-deleted.
  */
 export interface CountryDependencies {
   universities: number;
 }
 
 export async function checkCountryDependencies(
-  _countryId: string
+  countryId: string
 ): Promise<CountryDependencies> {
-  void _countryId;
-  // TODO(phase-3): return { universities: await University.countDocuments({ country: countryId }) }
-  return { universities: 0 };
+  const universities = await University.countDocuments({ country: countryId }).exec();
+  return { universities };
 }

@@ -238,6 +238,61 @@ currently reports zero universities; Phase 3 replaces it with a real count and
 deletion already refuses non-zero counts (409, "Unpublish instead"). No
 cascading deletes, no silent removal of related records.
 
+## Phase 3 — University management
+
+Admin-only university CRUD linked to countries, with double-gated public pages.
+
+### Data model
+
+`src/models/University.ts`: `name`, globally unique normalized `slug`
+(same pattern as countries — required for public URL routing; same-country
+duplicate names permitted and documented), required `country` ObjectId ref,
+optional `logo` + `coverImage` (URL + Cloudinary public ID each), optional
+`shortDescription` (300) / `description` (20000), optional `website` (https),
+`city` (120), `address` (300), `establishedYear` (integer 1000–current year),
+`programs` (≤30) / `degreeLevels` (≤20, trimmed, deduped), `isPublished`
+(default false), SEO fields, timestamps.
+
+Indexes: unique `slug`; `{country, isPublished, updatedAt}` for country
+listings; `{isPublished, updatedAt}` for the public listing. Validation
+(`src/lib/universities/validation.ts`, client-safe) uses an explicit
+allowlist — unknown/`$` keys rejected, `country` accepted only as an
+ObjectId string with existence verified server-side. Duplicates → 409.
+
+### Admin routes and APIs
+
+- Pages: `/admin/universities` (Mongo pagination, name search, country +
+  status filters, publish/unpublish + confirmed delete), `/admin/universities/new`,
+  `/admin/universities/[id]/edit` (server data + `UniversityForm`: slug
+  auto-suggest, country selector with draft-labeled options, logo/cover
+  uploads, programs/levels as one-per-line, SEO, publish flag).
+- APIs: `GET/POST /api/admin/universities`, `GET/PATCH/DELETE
+  /api/admin/universities/[id]`, plus `POST /api/admin/uploads/university-image`
+  (shared `src/lib/uploads.ts` pipeline: 2 MB, JPEG/PNG/WebP + magic bytes,
+  `study-abroad/universities`). Every handler verifies via `getCurrentAdmin()`.
+  Admins may link universities to draft countries; public stays blocked until
+  the country publishes (warning shown in the form).
+
+### Public pages and caching
+
+- `/universities` (search, country filter, pagination), `/universities/[slug]`
+  (country link, facts, programs/levels, related same-country universities),
+  `/countries/[slug]/universities` (country must be published, else `notFound()`).
+- Double gate enforced in the queries: university `isPublished` AND country
+  `isPublished` — via aggregation `$lookup` for lists, populate + re-check
+  for details. Drafts, blocked-country records, and unknown slugs → `notFound()`.
+- ISR + `"use cache"` (`hours`; tags `universities-list`,
+  `university-<slug>`). University mutations purge their own tags; country
+  mutations additionally purge `universities-list` and enumerate that
+  country's university detail tags — unpublishing a country hides its
+  universities immediately (verified), republishing restores them.
+
+### Delete policy
+
+University delete removes logo/cover assets best-effort (folder-validated,
+replace-then-delete on update) and never touches the country. Country delete
+counts real university references and refuses with 409 while any exist.
+
 ## Development commands
 
 ```bash

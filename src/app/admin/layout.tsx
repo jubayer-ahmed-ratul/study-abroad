@@ -38,13 +38,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             Countries
           </Link>
-          <span
-            aria-disabled
-            title="Coming in Phase 3"
-            className="rounded-full border border-zinc-300 px-3 py-1 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+          <Link
+            href="/admin/universities"
+            className="rounded-full border border-zinc-300 px-3 py-1 text-zinc-600 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300"
           >
-            Universities · soon
-          </span>
+            Universities
+          </Link>
         </nav>
       </header>
       <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "create-admin": "tsx scripts/create-admin.ts",
     "seed-countries": "tsx scripts/seed-countries.ts",
+    "seed-universities": "tsx scripts/seed-universities.ts",
     "warm-countries": "tsx scripts/warm-countries.ts"
   },
   "dependencies": {
