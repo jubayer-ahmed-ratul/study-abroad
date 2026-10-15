@@ -1,7 +1,7 @@
 import "server-only";
 
 import mongoose from "mongoose";
-import { revalidatePath } from "next/cache";
+import { cacheLife, cacheTag, revalidatePath, revalidateTag } from "next/cache";
 
 import { connectToDatabase } from "@/lib/mongodb";
 import { Country, toSafeCountry, type CountryRecord, type SafeCountry } from "@/models/Country";
@@ -47,6 +47,23 @@ const LIST_FIELDS = [
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Cache tags for public country reads (see cached wrappers below). */
+export const COUNTRIES_LIST_TAG = "countries-list";
+export function countryDetailTag(slug: string): string {
+  return `country-${slug}`;
+}
+
+function revalidateCountryCaches(slugs: string[]): void {
+  revalidatePath("/countries");
+  // { expire: 0 }: never serve stale — the next request revalidates
+  // synchronously. Admins see their change (including unpublish) immediately.
+  revalidateTag(COUNTRIES_LIST_TAG, { expire: 0 });
+  for (const slug of slugs) {
+    revalidatePath(`/countries/${slug}`);
+    revalidateTag(countryDetailTag(slug), { expire: 0 });
+  }
 }
 
 function isDuplicateKey(error: unknown): boolean {
@@ -124,6 +141,28 @@ export async function listPublishedCountries(): Promise<SafeCountry[]> {
   return docs.map((doc) => toSafeCountry(doc as unknown as CountryRecord));
 }
 
+/**
+ * Cached public reads. `cacheLife("minutes")` bounds server-side freshness;
+ * admin mutations purge via `revalidateCountryCaches`, so the first request
+ * after a change revalidates in the background (one potentially stale serve
+ * is possible — documented in README).
+ */
+export async function listPublishedCountriesCached(): Promise<SafeCountry[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(COUNTRIES_LIST_TAG);
+  return listPublishedCountries();
+}
+
+export async function getPublishedCountryBySlugCached(
+  slug: string
+): Promise<SafeCountry | null> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(COUNTRIES_LIST_TAG, countryDetailTag(slug));
+  return getPublishedCountryBySlug(slug);
+}
+
 export async function createCountry(input: ValidatedCountryInput): Promise<SafeCountry> {
   await connectToDatabase();
   try {
@@ -138,8 +177,7 @@ export async function createCountry(input: ValidatedCountryInput): Promise<SafeC
       metaTitle: input.metaTitle,
       metaDescription: input.metaDescription,
     });
-    revalidatePath("/countries");
-    if (doc.isPublished) revalidatePath(`/countries/${doc.slug}`);
+    revalidateCountryCaches(doc.isPublished ? [doc.slug] : []);
     return toSafeCountry(doc);
   } catch (error) {
     if (isDuplicateKey(error)) {
@@ -198,9 +236,9 @@ export async function updateCountry(
     }
   }
 
-  revalidatePath("/countries");
-  revalidatePath(`/countries/${oldSlug}`);
-  if (doc.slug !== oldSlug) revalidatePath(`/countries/${doc.slug}`);
+  revalidateCountryCaches(
+    doc.slug !== oldSlug ? [oldSlug, doc.slug] : [doc.slug]
+  );
 
   return toSafeCountry(doc);
 }
@@ -231,7 +269,6 @@ export async function deleteCountry(id: string): Promise<{ slug: string }> {
     }
   }
 
-  revalidatePath("/countries");
-  revalidatePath(`/countries/${slug}`);
+  revalidateCountryCaches([slug]);
   return { slug };
 }

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { getPublishedCountryBySlug } from "@/lib/countries/service";
+import { getPublishedCountryBySlugCached } from "@/lib/countries/service";
 
 interface CountryDetailProps {
   params: Promise<{ slug: string }>;
@@ -16,7 +16,7 @@ export const instant = false;
 
 export async function generateMetadata({ params }: CountryDetailProps): Promise<Metadata> {
   const { slug } = await params;
-  const country = await getPublishedCountryBySlug(slug);
+  const country = await getPublishedCountryBySlugCached(slug);
   if (!country) return { title: "Destination not found" };
   return {
     title: country.metaTitle || `Study in ${country.name}`,
@@ -42,7 +42,7 @@ async function CountryDetail({ params }: { params: Promise<{ slug: string }> }) 
   // Same request-time guarantee as the list page (see note there).
   await connection();
   const { slug } = await params;
-  const country = await getPublishedCountryBySlug(slug);
+  const country = await getPublishedCountryBySlugCached(slug);
   if (!country) notFound();
 
   return (

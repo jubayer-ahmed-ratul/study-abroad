@@ -218,17 +218,18 @@ upload UI; all other CRUD works.
 - `/countries` and `/countries/[slug]` query published records only; drafts
   and unknown slugs → `notFound()`. Metadata falls back from SEO fields to
   name/short description. Admin data is never cached.
-- Rendering: request-time data via `await connection()` inside the `Suspense`
-  boundaries, so data is always fresh — unpublishing removes a country
-  immediately with no stale-cache window. This is the sanctioned way to mark
-  database reads dynamic under the Next 16 `cacheComponents` rules
-  (`instant = false` alone only opts out of navigation validation; the
-  MongoDB driver reads the clock during queries, which static prerendering
-  forbids and which otherwise fails requests and litters production logs
-  with prerender-bailout errors). Suspense fallbacks preserve loading
-  states. Mutations also call `revalidatePath` for the list and affected
-  detail slugs so any future or framework-level route caching is purged
-  correctly. No cached-public-page claims beyond this setup.
+- Rendering: request-time shells (`await connection()` inside the data
+  boundaries — the sanctioned dynamic marker under Next 16 `cacheComponents`;
+  the MongoDB driver reads the clock during queries, which static
+  prerendering forbids). Suspense fallbacks preserve loading states.
+- Data caching: public reads go through `listPublishedCountriesCached` /
+  `getPublishedCountryBySlugCached` (`"use cache"`, `cacheLife("minutes")`,
+  tags `countries-list` + `country-<slug>`), so repeat visits skip MongoDB
+  entirely. Admin create/update/delete purge via `revalidateTag(tag,
+  { expire: 0 })` (+ `revalidatePath` for good measure): stale content is
+  never served — the next request after a mutation revalidates synchronously,
+  so unpublish takes effect immediately. No cached-public-page claims beyond
+  this setup.
 
 ### Delete policy
 
