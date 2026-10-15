@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { CountryGridSkeleton } from "@/components/countries/CountrySkeletons";
 import { listPublishedCountriesCached } from "@/lib/countries/service";
 
 export const metadata: Metadata = {
@@ -40,7 +41,7 @@ export default function CountriesPage() {
         </p>
       </section>
       <section className="mx-auto max-w-5xl px-4 pb-16 pt-6">
-        <Suspense fallback={<p className="text-sm text-zinc-500">Loading destinations…</p>}>
+        <Suspense fallback={<CountryGridSkeleton />}>
           <CountryGrid />
         </Suspense>
       </section>
@@ -66,7 +67,11 @@ async function CountryGrid() {
       </p>
       <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {countries.map((country, index) => (
-          <li key={country.id}>
+          <li
+            key={country.id}
+            className="animate-fade-up"
+            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+          >
             <Link
               href={`/countries/${country.slug}`}
               className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 transition-all hover:-translate-y-1 hover:shadow-lg dark:bg-zinc-950 dark:ring-zinc-800"
