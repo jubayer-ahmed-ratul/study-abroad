@@ -149,7 +149,7 @@ export async function listPublishedCountries(): Promise<SafeCountry[]> {
  */
 export async function listPublishedCountriesCached(): Promise<SafeCountry[]> {
   "use cache";
-  cacheLife("minutes");
+  cacheLife("hours");
   cacheTag(COUNTRIES_LIST_TAG);
   return listPublishedCountries();
 }
@@ -158,7 +158,7 @@ export async function getPublishedCountryBySlugCached(
   slug: string
 ): Promise<SafeCountry | null> {
   "use cache";
-  cacheLife("minutes");
+  cacheLife("hours");
   cacheTag(COUNTRIES_LIST_TAG, countryDetailTag(slug));
   return getPublishedCountryBySlug(slug);
 }
