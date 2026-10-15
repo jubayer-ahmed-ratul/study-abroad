@@ -4,10 +4,17 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { getCountryWithUniversitiesCached } from "@/lib/universities/service";
+import { listPublishedCountriesCached } from "@/lib/countries/service";
 import { UniversitiesSkeleton } from "@/components/universities/UniversitySkeletons";
 
 interface CountryUniversitiesProps {
   params: Promise<{ slug: string }>;
+}
+
+// Pre-render every published country's sub-list at build time (ISR).
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
+  const countries = await listPublishedCountriesCached();
+  return countries.map((country) => ({ slug: country.slug }));
 }
 
 export async function generateMetadata({ params }: CountryUniversitiesProps): Promise<Metadata> {
