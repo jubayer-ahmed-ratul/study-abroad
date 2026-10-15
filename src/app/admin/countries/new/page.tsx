@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { connection } from "next/server";
 
 import { isCloudinaryConfigured } from "@/lib/env";
 import CountryForm from "@/components/admin/CountryForm";
 
-export default function NewCountryPage() {
+export default async function NewCountryPage() {
+  // Read env at request time: build-time prerender would bake a stale
+  // "Cloudinary unconfigured" flag if vars are added after the first build.
+  await connection();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
