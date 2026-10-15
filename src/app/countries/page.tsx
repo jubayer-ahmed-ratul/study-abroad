@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 
 import { CountryGridSkeleton } from "@/components/countries/CountrySkeletons";
-import { listPublishedCountriesCached } from "@/lib/countries/service";
+import CountryInfiniteGrid from "@/components/countries/CountryInfiniteGrid";
+import { COUNTRIES_PAGE_SIZE } from "@/lib/countries/pagination";
+import { listPublishedCountriesPaginated } from "@/lib/countries/service";
 
 export const metadata: Metadata = {
   title: "Study destinations",
@@ -14,15 +15,6 @@ export const metadata: Metadata = {
 // effect immediately), and database reads are incompatible with static
 // prerendering under the cacheComponents rules.
 export const instant = false;
-
-const CARD_ACCENTS = [
-  "from-sky-500 to-blue-700",
-  "from-emerald-500 to-teal-700",
-  "from-violet-500 to-purple-700",
-  "from-amber-500 to-orange-700",
-  "from-rose-500 to-pink-700",
-  "from-cyan-500 to-sky-700",
-];
 
 export default function CountriesPage() {
   return (
@@ -50,67 +42,9 @@ export default function CountriesPage() {
 }
 
 async function CountryGrid() {
-  const countries = await listPublishedCountriesCached();
-
-  if (countries.length === 0) {
-    return (
-      <p className="rounded-2xl bg-zinc-50 p-6 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
-        No destinations published yet. Check back soon.
-      </p>
-    );
-  }
+  const first = await listPublishedCountriesPaginated(1, COUNTRIES_PAGE_SIZE);
 
   return (
-    <>
-      <p className="mb-4 text-xs font-medium uppercase tracking-wider text-zinc-500">
-        {countries.length} destinations
-      </p>
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {countries.map((country, index) => (
-          <li
-            key={country.id}
-            className="animate-fade-up"
-            style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-          >
-            <Link
-              href={`/countries/${country.slug}`}
-              className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 transition-all hover:-translate-y-1 hover:shadow-lg dark:bg-zinc-950 dark:ring-zinc-800"
-            >
-              <span
-                className={`flex h-28 items-center justify-between bg-gradient-to-r px-5 ${
-                  CARD_ACCENTS[index % CARD_ACCENTS.length]
-                }`}
-              >
-                <span className="text-4xl font-bold text-white/95">
-                  {country.name.charAt(0)}
-                </span>
-                {country.flagImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={country.flagImageUrl}
-                    alt=""
-                    className="h-12 w-auto rounded border border-white/40 bg-white/10"
-                    loading="lazy"
-                  />
-                ) : null}
-              </span>
-              <span className="flex flex-1 flex-col p-5">
-                <span className="text-lg font-semibold text-zinc-900 group-hover:text-zinc-700 dark:text-zinc-50">
-                  {country.name}
-                </span>
-                {country.shortDescription ? (
-                  <span className="mt-1.5 line-clamp-3 text-sm leading-6 text-zinc-600 dark:text-zinc-400">
-                    {country.shortDescription}
-                  </span>
-                ) : null}
-                <span className="mt-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  Explore guide <span aria-hidden>→</span>
-                </span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </>
+    <CountryInfiniteGrid initial={first.items} total={first.total} />
   );
 }

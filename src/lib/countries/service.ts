@@ -148,7 +148,7 @@ export async function listPublishedCountries(): Promise<SafeCountry[]> {
 }
 
 /**
- * Cached public reads. `cacheLife("minutes")` bounds server-side freshness;
+ * Cached public reads. `cacheLife("hours")` bounds server-side freshness;
  * admin mutations purge via `revalidateCountryCaches`, so the first request
  * after a change revalidates in the background (one potentially stale serve
  * is possible — documented in README).
@@ -158,6 +158,43 @@ export async function listPublishedCountriesCached(): Promise<SafeCountry[]> {
   cacheLife("hours");
   cacheTag(COUNTRIES_LIST_TAG);
   return listPublishedCountries();
+}
+
+export interface PublishedCountriesPage {
+  items: SafeCountry[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+/** Paginated published countries for infinite scroll (fixed page size). */
+export async function listPublishedCountriesPaginated(
+  page: number,
+  limit: number
+): Promise<PublishedCountriesPage> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(COUNTRIES_LIST_TAG);
+  const safePage = Math.max(1, Math.floor(page));
+  const safeLimit = Math.min(12, Math.max(1, Math.floor(limit)));
+  await connectToDatabase();
+  const filter = { isPublished: true };
+  const [total, docs] = await Promise.all([
+    Country.countDocuments(filter).exec(),
+    Country.find(filter)
+      .select("name slug shortDescription flagImageUrl createdAt updatedAt")
+      .sort({ updatedAt: -1 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .lean()
+      .exec(),
+  ]);
+  return {
+    items: docs.map((doc) => toSafeCountry(doc as unknown as CountryRecord)),
+    total,
+    page: safePage,
+    totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+  };
 }
 
 export async function getPublishedCountryBySlugCached(
