@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "seed-countries": "tsx scripts/seed-countries.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
