@@ -175,6 +175,68 @@ npm run dev
 - Delete or auth-protect `/api/health/*` before public launch (see Phase 0 notes).
 - Rotate `AUTH_SECRET` to invalidate all sessions if it ever leaks.
 
+## Phase 2 — Country management
+
+Admin-only country CRUD with published-gated public pages.
+
+### Data model
+
+`src/models/Country.ts`: `name`, unique `slug` (normalized lowercase,
+`a-z0-9-hyphen`), optional `flagImageUrl` + `flagImagePublicId`, optional
+`shortDescription` (300) / `description` (20000), `isPublished` (default
+false), optional `metaTitle` (70) / `metaDescription` (160), timestamps.
+
+Indexes: unique `slug`; compound `{isPublished, updatedAt}` for the public
+listing. Validation (`src/lib/countries/validation.ts`, client-safe) uses an
+explicit field allowlist — unknown keys and `$`/dotted keys are rejected with
+400, never forwarded to MongoDB. Duplicate slugs surface as HTTP 409.
+
+### Admin routes and APIs
+
+- Pages: `/admin/countries` (Mongo pagination, name search, published/draft
+  filter, publish/unpublish + delete with confirmation), `/admin/countries/new`,
+  `/admin/countries/[id]/edit` (server data + `CountryForm` client component,
+  slug auto-suggested from name but editable).
+- APIs: `GET/POST /api/admin/countries`, `GET/PATCH/DELETE
+  /api/admin/countries/[id]`, plus `POST /api/admin/uploads/country-image`.
+  Every handler verifies the session via `getCurrentAdmin()` (401/403) — the
+  proxy redirect is UX only, never the boundary. Malformed ids → 400,
+  missing → 404, duplicate slug → 409, unexpected → sanitized 500.
+
+### Images (Cloudinary, when configured)
+
+Authenticated upload endpoint only: 2 MB cap, JPEG/PNG/WebP with magic-byte
+verification, folder `study-abroad/countries`; API secret never leaves the
+server. Country stores the minted `{url, publicId}`; deletions validate the
+folder prefix. Replacement uploads before old-image removal; cleanup failures
+are logged, never fatal (unreferenced asset may remain — see limits).
+Without Cloudinary credentials the endpoint returns 503 and the form hides
+upload UI; all other CRUD works.
+
+### Public pages and caching
+
+- `/countries` and `/countries/[slug]` query published records only; drafts
+  and unknown slugs → `notFound()`. Metadata falls back from SEO fields to
+  name/short description. Admin data is never cached.
+- Rendering: request-time data via `await connection()` inside the `Suspense`
+  boundaries, so data is always fresh — unpublishing removes a country
+  immediately with no stale-cache window. This is the sanctioned way to mark
+  database reads dynamic under the Next 16 `cacheComponents` rules
+  (`instant = false` alone only opts out of navigation validation; the
+  MongoDB driver reads the clock during queries, which static prerendering
+  forbids and which otherwise fails requests and litters production logs
+  with prerender-bailout errors). Suspense fallbacks preserve loading
+  states. Mutations also call `revalidatePath` for the list and affected
+  detail slugs so any future or framework-level route caching is purged
+  correctly. No cached-public-page claims beyond this setup.
+
+### Delete policy
+
+Hard delete with a `checkCountryDependencies()` hook (`src/lib/countries/dependencies.ts`):
+currently reports zero universities; Phase 3 replaces it with a real count and
+deletion already refuses non-zero counts (409, "Unpublish instead"). No
+cascading deletes, no silent removal of related records.
+
 ## Development commands
 
 ```bash

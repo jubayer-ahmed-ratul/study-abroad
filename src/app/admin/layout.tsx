@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -25,19 +26,21 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <LogoutButton />
         </div>
         <nav className="mx-auto flex max-w-5xl gap-2 px-4 pb-3 text-sm">
-          <span className="rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-zinc-100 dark:text-zinc-900">
-            Dashboard
-          </span>
-          <span
-            aria-disabled
-            title="Coming in Phase 2"
-            className="rounded-full border border-zinc-300 px-3 py-1 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+          <Link
+            href="/admin"
+            className="rounded-full bg-zinc-900 px-3 py-1 text-white dark:bg-zinc-100 dark:text-zinc-900"
           >
-            Countries · soon
-          </span>
+            Dashboard
+          </Link>
+          <Link
+            href="/admin/countries"
+            className="rounded-full border border-zinc-300 px-3 py-1 text-zinc-600 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-300"
+          >
+            Countries
+          </Link>
           <span
             aria-disabled
-            title="Coming in Phase 2"
+            title="Coming in Phase 3"
             className="rounded-full border border-zinc-300 px-3 py-1 text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
           >
             Universities · soon
