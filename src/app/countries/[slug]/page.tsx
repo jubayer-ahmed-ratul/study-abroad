@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { getPublishedCountryBySlugCached } from "@/lib/countries/service";
+import {
+  getPublishedCountryBySlugCached,
+  listPublishedCountriesCached,
+} from "@/lib/countries/service";
 
 interface CountryDetailProps {
   params: Promise<{ slug: string }>;
@@ -13,6 +15,13 @@ interface CountryDetailProps {
 // Per-request rendering, like the list page: always-fresh data and no
 // prerender-bailout noise in production logs.
 export const instant = false;
+
+// Pre-render every published country at build time so detail pages serve
+// from the edge cache (ISR). Mutations purge via revalidatePath/Tags.
+export async function generateStaticParams(): Promise<Array<{ slug: string }>> {
+  const countries = await listPublishedCountriesCached();
+  return countries.map((country) => ({ slug: country.slug }));
+}
 
 export async function generateMetadata({ params }: CountryDetailProps): Promise<Metadata> {
   const { slug } = await params;
@@ -39,8 +48,6 @@ export default function CountryDetailPage({ params }: CountryDetailProps) {
 }
 
 async function CountryDetail({ params }: { params: Promise<{ slug: string }> }) {
-  // Same request-time guarantee as the list page (see note there).
-  await connection();
   const { slug } = await params;
   const country = await getPublishedCountryBySlugCached(slug);
   if (!country) notFound();

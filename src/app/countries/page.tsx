@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { listPublishedCountriesCached } from "@/lib/countries/service";
@@ -50,9 +49,6 @@ export default function CountriesPage() {
 }
 
 async function CountryGrid() {
-  // Force request-time rendering: the MongoDB driver reads the clock during
-  // queries, which static prerendering forbids. Data stays always fresh.
-  await connection();
   const countries = await listPublishedCountriesCached();
 
   if (countries.length === 0) {

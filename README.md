@@ -218,18 +218,18 @@ upload UI; all other CRUD works.
 - `/countries` and `/countries/[slug]` query published records only; drafts
   and unknown slugs → `notFound()`. Metadata falls back from SEO fields to
   name/short description. Admin data is never cached.
-- Rendering: request-time shells (`await connection()` inside the data
-  boundaries — the sanctioned dynamic marker under Next 16 `cacheComponents`;
-  the MongoDB driver reads the clock during queries, which static
-  prerendering forbids). Suspense fallbacks preserve loading states.
+- Rendering: static public pages (ISR). The list page and every published
+  detail slug pre-render at build time via `generateStaticParams`, serving
+  from the edge cache with no database hit. Slugs created after the build
+  render on demand on first visit. Suspense fallbacks preserve loading states.
 - Data caching: public reads go through `listPublishedCountriesCached` /
-  `getPublishedCountryBySlugCached` (`"use cache"`, `cacheLife("minutes")`,
-  tags `countries-list` + `country-<slug>`), so repeat visits skip MongoDB
-  entirely. Admin create/update/delete purge via `revalidateTag(tag,
-  { expire: 0 })` (+ `revalidatePath` for good measure): stale content is
-  never served — the next request after a mutation revalidates synchronously,
-  so unpublish takes effect immediately. No cached-public-page claims beyond
-  this setup.
+  `getPublishedCountryBySlugCached` (`"use cache"`, `cacheLife("hours")`,
+  tags `countries-list` + `country-<slug>`).
+- Invalidation: admin create/update/delete purge via `revalidateTag(tag,
+  { expire: 0 })` + `revalidatePath` — the next request after a mutation
+  revalidates synchronously, so publish/unpublish/delete take effect
+  immediately (verified: unpublished slug leaves the list at once, deleted
+  slug ends at HTTP 404). No cached-public-page claims beyond this setup.
 
 ### Delete policy
 
